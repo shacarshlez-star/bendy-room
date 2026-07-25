@@ -99,16 +99,23 @@ export default function SongPage() {
 
   const toggleStructureEdit = async () => {
     if (isEditing) {
-      // שמירה בסיס נתונים בסיום עריכה
       if (!song) return
       setSaving(true)
+      
+      // עדכון סולם הבסיס במידה ונעשתה מודולציה בזמן עריכה
+      const updatedKey = transposeChord(song.key, currentShift)
+      const updatedSections = song.sections.map(sec => ({
+        ...sec,
+        bars: sec.bars.map(b => ({ chord: transposeChord(b.chord, currentShift) }))
+      }))
+
       const { error } = await supabase
         .from('songs')
         .update({
           title: song.title,
-          key: song.key,
+          key: updatedKey,
           audio_url: song.audio_url,
-          sections: song.sections
+          sections: updatedSections
         })
         .eq('id', songId)
 
@@ -116,6 +123,7 @@ export default function SongPage() {
       if (error) {
         alert('שגיאה בשמירה: ' + error.message)
       } else {
+        setSong({ ...song, key: updatedKey, sections: updatedSections })
         setIsEditing(false)
         setCurrentShift(0)
       }
@@ -165,7 +173,7 @@ export default function SongPage() {
     <div style={{ backgroundColor: '#0d1310', minHeight: '100vh', color: '#e8f5e9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', direction: 'rtl', padding: '15px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#111a15', borderRadius: '20px', padding: '20px', boxSizing: 'border-box' }}>
         
-        {/* כפתור חזרה לסטליסט */}
+        {/* חזרה לסטליסט */}
         <button 
           onClick={() => router.push('/setlist')}
           style={{ background: 'transparent', border: 'none', color: '#2ecc71', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '15px', padding: 0 }}
@@ -173,10 +181,10 @@ export default function SongPage() {
           ➔ חזרה לסטליסט
         </button>
 
-        {/* כותרת השיר והסולם - בדיוק כמו בקובץ Jam-On */}
+        {/* כותרת השיר והסולם - הטפט המקורי */}
         <div style={{ borderBottom: '2px solid #16221c', paddingBottom: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {isEditing ? (
+            {role === 'admin' && isEditing ? (
               <input 
                 type="text" 
                 value={song.title} 
@@ -191,35 +199,37 @@ export default function SongPage() {
             </div>
           </div>
 
-          {/* פקד שינוי סולם זמני */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#16221c', padding: '10px', borderRadius: '8px' }}>
-            <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>שינוי סולם זמני (+/-):</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button 
-                onClick={() => changeSemitone(-1)}
-                style={{ backgroundColor: '#0d1310', color: '#2ecc71', border: '1px solid #4f685a', width: '35px', height: '35px', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                -
-              </button>
-              <span style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 'bold', minWidth: '60px', textAlign: 'center' }}>
-                {currentShift === 0 ? 'מקור' : (currentShift > 0 ? `+${currentShift}` : currentShift)}
-              </span>
-              <button 
-                onClick={() => changeSemitone(1)}
-                style={{ backgroundColor: '#0d1310', color: '#2ecc71', border: '1px solid #4f685a', width: '35px', height: '35px', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                +
-              </button>
+          {/* מודולציה זמינה בלעדית לאדמין במצב עריכה בלבד */}
+          {role === 'admin' && isEditing && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#16221c', padding: '10px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>שינוי סולם זמני (+/-):</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button 
+                  onClick={() => changeSemitone(-1)}
+                  style={{ backgroundColor: '#0d1310', color: '#2ecc71', border: '1px solid #4f685a', width: '35px', height: '35px', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  -
+                </button>
+                <span style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 'bold', minWidth: '60px', textAlign: 'center' }}>
+                  {currentShift === 0 ? 'מקור' : (currentShift > 0 ? `+${currentShift}` : currentShift)}
+                </span>
+                <button 
+                  onClick={() => changeSemitone(1)}
+                  style={{ backgroundColor: '#0d1310', color: '#2ecc71', border: '1px solid #4f685a', width: '35px', height: '35px', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  +
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* רשימת הבתים והפזמונים */}
+        {/* רשימת הבתים והאקורדים על גבי "הטפט" */}
         <div>
           {song.sections.map((sec, sIdx) => (
             <div key={sIdx} style={{ marginBottom: '25px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                {isEditing ? (
+                {role === 'admin' && isEditing ? (
                   <input 
                     type="text" 
                     value={sec.title} 
@@ -232,7 +242,7 @@ export default function SongPage() {
                   </span>
                 )}
 
-                {isEditing && (
+                {role === 'admin' && isEditing && (
                   <button 
                     onClick={() => removeSection(sIdx)}
                     style={{ background: 'none', border: 'none', color: '#e74c3c', fontSize: '0.85rem', cursor: 'pointer' }}
@@ -246,8 +256,8 @@ export default function SongPage() {
               <div style={{ backgroundColor: '#0d1310', border: '1px solid #22332a', borderRadius: '10px', padding: '20px 10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-around', fontFamily: "'Courier New', Courier, monospace", fontSize: '1.8rem', fontWeight: 'bold', color: '#2ecc71' }}>
                   {sec.bars.map((bar, bIdx) => (
-                    <span key={bIdx} style={{ backgroundColor: isEditing ? '#1c2d24' : '#111a15', padding: '2px 10px', borderRadius: '4px', border: isEditing ? '1px dashed #3498db' : 'none', color: isEditing ? '#fff' : '#2ecc71' }}>
-                      {isEditing ? (
+                    <span key={bIdx} style={{ backgroundColor: (role === 'admin' && isEditing) ? '#1c2d24' : '#111a15', padding: '2px 10px', borderRadius: '4px', border: (role === 'admin' && isEditing) ? '1px dashed #3498db' : 'none', color: (role === 'admin' && isEditing) ? '#fff' : '#2ecc71' }}>
+                      {role === 'admin' && isEditing ? (
                         <input 
                           type="text" 
                           value={bar.chord} 
@@ -261,7 +271,7 @@ export default function SongPage() {
                   ))}
                 </div>
 
-                {/* מיתרי גיטרה */}
+                {/* 6 מיתרי גיטרה */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '5px 0', marginTop: '10px' }}>
                   <div style={{ height: '2px', backgroundColor: '#4f685a', width: '100%' }}></div>
                   <div style={{ height: '2px', backgroundColor: '#4f685a', width: '100%' }}></div>
@@ -275,7 +285,7 @@ export default function SongPage() {
           ))}
         </div>
 
-        {/* סרגל כפתורי אדמין - מתחת לשיר */}
+        {/* סרגל כפתורי אדמין בלבד */}
         {role === 'admin' && (
           <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
             <button 
