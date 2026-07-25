@@ -28,7 +28,7 @@ interface SongData {
 const CHROMATIC_SCALE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 const transposeChord = (chord: string, semitones: number) => {
-  if (semitones === 0) return chord
+  if (!chord || semitones === 0) return chord
   const isMinor = chord.endsWith("m")
   const root = isMinor ? chord.slice(0, -1) : chord
   let index = CHROMATIC_SCALE.indexOf(root)
@@ -54,7 +54,6 @@ export default function SongPage() {
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [currentShift, setCurrentShift] = useState(0)
 
   useEffect(() => {
     const savedRole = (localStorage.getItem('bendy_user_role') || localStorage.getItem('role') || '').toLowerCase()
@@ -98,10 +97,23 @@ export default function SongPage() {
     setLoading(false)
   }
 
-  const changeSemitone = (direction: number) => {
-    const newShift = currentShift + direction
-    if (newShift < -4 || newShift > 4) return
-    setCurrentShift(newShift)
+  // מודולציה בלייב - משנה את האקורדים והסולם ישירות בתוך התיבות בעריכה!
+  const handleLiveTranspose = (direction: number) => {
+    if (!song) return
+    const updatedKey = transposeChord(song.key, direction)
+    const updatedSections = song.sections.map(sec => ({
+      ...sec,
+      bars: sec.bars.map(bar => ({
+        ...bar,
+        chord: transposeChord(bar.chord, direction)
+      }))
+    }))
+
+    setSong({
+      ...song,
+      key: updatedKey,
+      sections: updatedSections
+    })
   }
 
   const toggleStructureEdit = async () => {
@@ -109,19 +121,13 @@ export default function SongPage() {
       if (!song) return
       setSaving(true)
       
-      const updatedKey = transposeChord(song.key, currentShift)
-      const updatedSections = song.sections.map(sec => ({
-        ...sec,
-        bars: sec.bars.map(b => ({ chord: transposeChord(b.chord, currentShift) }))
-      }))
-
       const { error } = await supabase
         .from('songs')
         .update({
           title: song.title,
-          key: updatedKey,
+          key: song.key,
           audio_url: song.audio_url,
-          sections: updatedSections
+          sections: song.sections
         })
         .eq('id', songId)
 
@@ -129,9 +135,7 @@ export default function SongPage() {
       if (error) {
         alert('שגיאה בשמירה: ' + error.message)
       } else {
-        setSong({ ...song, key: updatedKey, sections: updatedSections })
         setIsEditing(false)
-        setCurrentShift(0)
       }
     } else {
       setIsEditing(true)
@@ -169,7 +173,7 @@ export default function SongPage() {
     if (!song) return
     const newSections = [
       ...song.sections,
-      { title: '🎸 C Part / חלק חדש', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'E' }, { chord: 'Am' }] }
+      { title: '🎸 חלק חדש / C Part', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'E' }, { chord: 'Am' }] }
     ]
     setSong({ ...song, sections: newSections })
   }
@@ -195,7 +199,6 @@ export default function SongPage() {
             ➔ חזרה לסטליסט
           </button>
 
-          {/* כפתור החלפת תפקיד מהירה - מבטיח שתוכל להפעיל אדמין בלחיצה אחת בכל רגע! */}
           <button 
             onClick={toggleRole}
             style={{ background: role === 'admin' ? '#3498db' : '#1c2d24', color: '#fff', border: '1px solid #3498db', borderRadius: '20px', padding: '4px 12px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
@@ -204,7 +207,7 @@ export default function SongPage() {
           </button>
         </div>
 
-        {/* כותרת השיר והסולם - הטפט המקורי */}
+        {/* כותרת השיר והסולם */}
         <div style={{ borderBottom: '2px solid #16221c', paddingBottom: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {role === 'admin' && isEditing ? (
@@ -218,7 +221,7 @@ export default function SongPage() {
               <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#2ecc71' }}>{song.title}</div>
             )}
             <div style={{ fontSize: '0.9rem', color: '#a4b3a9' }}>
-              סולם נוכחי: {transposeChord(song.key, currentShift)}
+              סולם נוכחי: <strong style={{ color: '#2ecc71' }}>{song.key}</strong>
             </div>
           </div>
 
@@ -235,22 +238,22 @@ export default function SongPage() {
             </div>
           )}
 
-          {/* שינוי מודולציה זמני (+/-) - לאדמין במצב עריכה */}
+          {/* פקד מודולציית סולם בלייב (+/-) - משנה את האקורדים בלייב על המסך! */}
           {role === 'admin' && isEditing && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#16221c', padding: '10px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>שינוי סולם זמני (+/-):</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>שינוי סולם בלייב (+/-):</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <button 
-                  onClick={() => changeSemitone(-1)}
+                  onClick={() => handleLiveTranspose(-1)}
                   style={{ backgroundColor: '#0d1310', color: '#2ecc71', border: '1px solid #4f685a', width: '35px', height: '35px', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   -
                 </button>
-                <span style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 'bold', minWidth: '60px', textAlign: 'center' }}>
-                  {currentShift === 0 ? 'מקור' : (currentShift > 0 ? `+${currentShift}` : currentShift)}
+                <span style={{ fontFamily: 'monospace', fontSize: '1rem', fontWeight: 'bold', color: '#3498db' }}>
+                  מודולציה
                 </span>
                 <button 
-                  onClick={() => changeSemitone(1)}
+                  onClick={() => handleLiveTranspose(1)}
                   style={{ backgroundColor: '#0d1310', color: '#2ecc71', border: '1px solid #4f685a', width: '35px', height: '35px', borderRadius: '6px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   +
@@ -260,7 +263,7 @@ export default function SongPage() {
           )}
         </div>
 
-        {/* רשימת הבתים והאקורדים על גבי "הטפט" */}
+        {/* רשימת הבתים והאקורדים (הטפט) */}
         <div>
           {song.sections.map((sec, sIdx) => (
             <div key={sIdx} style={{ marginBottom: '25px' }}>
@@ -301,7 +304,7 @@ export default function SongPage() {
                           style={{ background: 'transparent', border: 'none', color: '#fff', textAlign: 'center', width: '50px', fontSize: '1.6rem', fontWeight: 'bold' }}
                         />
                       ) : (
-                        transposeChord(bar.chord, currentShift)
+                        bar.chord
                       )}
                     </span>
                   ))}
@@ -318,7 +321,7 @@ export default function SongPage() {
                 </div>
               </div>
 
-              {/* כפתור הוספת אקורד/תיבה לחלק הספציפי (לאדמין בעריכה) */}
+              {/* הוספת אקורד לחלק קיים */}
               {role === 'admin' && isEditing && (
                 <button 
                   onClick={() => addBarToSection(sIdx)}
@@ -331,7 +334,7 @@ export default function SongPage() {
           ))}
         </div>
 
-        {/* סרגל כפתורי אדמין - עריכת מבנה והוספת C Part */}
+        {/* סרגל עריכה לאדמין בלבד */}
         {role === 'admin' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
             <div style={{ display: 'flex', gap: '10px' }}>
