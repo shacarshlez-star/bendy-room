@@ -55,11 +55,11 @@ export default function SetlistPage() {
     if (!newTitle.trim()) return
 
     setAdding(true)
+    // הוספה נקייה ללא bpm:
     const { error } = await supabase.from('songs').insert([
       { 
         title: newTitle.trim(), 
         key: 'Am', 
-        bpm: 120, 
         sections: [
           { title: '🏠 בית', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'E' }, { chord: 'Am' }] }
         ] 
@@ -80,7 +80,7 @@ export default function SetlistPage() {
     <div style={{ backgroundColor: '#0d1310', minHeight: '100vh', color: '#e8f5e9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', direction: 'rtl', padding: '15px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#111a15', borderRadius: '20px', padding: '20px', boxSizing: 'border-box' }}>
         
-        {/* סרגל עליון עם החלפת תפקיד מהירה */}
+        {/* סרגל עליון */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h1 style={{ color: '#2ecc71', fontSize: '1.4rem', margin: 0, fontWeight: 'bold' }}>סטליסט חזרה 🎸</h1>
           
@@ -92,7 +92,7 @@ export default function SetlistPage() {
           </button>
         </div>
 
-        {/* כפתור הוספת שיר לאדמין בלבד */}
+        {/* הוספת שיר - לאדמין בלבד */}
         {role === 'admin' && (
           <div style={{ marginBottom: '15px' }}>
             <button 
@@ -104,12 +104,12 @@ export default function SetlistPage() {
           </div>
         )}
 
-        {/* שורת הוספה מהירה בלחיצה */}
+        {/* שורת קלט להוספת שם שיר */}
         {role === 'admin' && showAddRow && (
           <form onSubmit={handleQuickAdd} style={{ display: 'flex', gap: '8px', marginBottom: '15px', width: '100%', boxSizing: 'border-box' }}>
             <input 
               type="text" 
-              placeholder="שם השיר החדש..." 
+              placeholder="שם השיר..." 
               value={newTitle} 
               onChange={(e) => setNewTitle(e.target.value)}
               autoFocus
@@ -125,7 +125,7 @@ export default function SetlistPage() {
           </form>
         )}
 
-        {/* רשימת השירים */}
+        {/* רשימת שירים */}
         {loading ? (
           <div style={{ textAlign: 'center', color: '#2ecc71', padding: '20px' }}>טוען שירים...</div>
         ) : (
