@@ -19,7 +19,7 @@ export default function SetlistPage() {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [showAddForm, setShowAddForm] = useState(false)
+  const [showAddRow, setShowAddRow] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [adding, setAdding] = useState(false)
 
@@ -44,7 +44,7 @@ export default function SetlistPage() {
     setLoading(false)
   }
 
-  const handleAddSong = async (e: React.FormEvent) => {
+  const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
 
@@ -52,10 +52,10 @@ export default function SetlistPage() {
     const { error } = await supabase.from('songs').insert([
       { 
         title: newTitle.trim(), 
-        key: 'Cm', 
+        key: 'Am', 
         bpm: 120, 
         sections: [
-          { title: 'בית 1 🏠', bars: [{ chord: 'Cm' }] }
+          { title: '🏠 בית', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'E' }, { chord: 'Am' }] }
         ] 
       }
     ])
@@ -64,72 +64,71 @@ export default function SetlistPage() {
       alert('שגיאה בהוספת שיר: ' + error.message)
     } else {
       setNewTitle('')
-      setShowAddForm(false)
+      setShowAddRow(false)
       fetchSongs()
     }
     setAdding(false)
   }
 
   return (
-    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#00ff88', fontFamily: 'sans-serif', direction: 'rtl', padding: '16px', boxSizing: 'border-box' }}>
-      <div style={{ maxWidth: '400px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: '#0d1310', minHeight: '100vh', color: '#e8f5e9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', direction: 'rtl', padding: '15px', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#111a15', borderRadius: '20px', padding: '20px', boxSizing: 'border-box' }}>
         
-        {/* כותרת וכפתור הוספת שיר מבוסס תפקיד */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        {/* כותרת וכפתור הוספת שיר בצד שמאל למעלה (לאדמין) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #16221c', paddingBottom: '12px' }}>
           <div>
-            <h1 style={{ color: '#00ff88', fontSize: '22px', margin: 0, fontWeight: 'bold' }}>סטליסט חזרה 🎸</h1>
-            <span style={{ fontSize: '12px', color: '#888' }}>
+            <h1 style={{ color: '#2ecc71', fontSize: '1.4rem', margin: 0, fontWeight: 'bold' }}>סטליסט חזרה 🎸</h1>
+            <span style={{ fontSize: '0.8rem', color: '#a4b3a9' }}>
               {role === 'admin' ? 'מצב מנהל' : 'מצב נגן'}
             </span>
           </div>
 
           {role === 'admin' && (
             <button 
-              onClick={() => setShowAddForm(!showAddForm)}
-              style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+              onClick={() => setShowAddRow(!showAddRow)}
+              style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#2ecc71', color: '#0d1310', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}
             >
-              {showAddForm ? 'ביטול' : '+ הוסף שיר'}
+              {showAddRow ? 'ביטול' : '+ הוסף שיר'}
             </button>
           )}
         </div>
 
-        {/* טופס הוספה מתוחם לאדמין */}
-        {role === 'admin' && showAddForm && (
-          <form onSubmit={handleAddSong} style={{ background: '#0d1810', padding: '14px', borderRadius: '12px', border: '1px solid #00ff88', marginBottom: '20px', boxSizing: 'border-box', width: '100%' }}>
-            <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
-              <input 
-                type="text" 
-                placeholder="שם השיר החדש..." 
-                value={newTitle} 
-                onChange={(e) => setNewTitle(e.target.value)}
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #1c3523', background: '#060d08', color: '#fff', boxSizing: 'border-box', fontSize: '14px' }}
-              />
-              <button 
-                type="submit" 
-                disabled={adding}
-                style={{ padding: '10px 16px', borderRadius: '6px', border: 'none', background: '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                {adding ? 'שומר...' : 'הוסף'}
-              </button>
-            </div>
+        {/* שורת קלט מהירה ופרקטית להוספת שיר (לאדמין) - מופיעה ישירות מעל הסטליסט */}
+        {role === 'admin' && showAddRow && (
+          <form onSubmit={handleQuickAdd} style={{ display: 'flex', gap: '8px', marginBottom: '15px', width: '100%', boxSizing: 'border-box' }}>
+            <input 
+              type="text" 
+              placeholder="שם השיר..." 
+              value={newTitle} 
+              onChange={(e) => setNewTitle(e.target.value)}
+              autoFocus
+              style={{ flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #3498db', background: '#0d1310', color: '#fff', fontSize: '1rem', boxSizing: 'border-box' }}
+            />
+            <button 
+              type="submit" 
+              disabled={adding}
+              style={{ padding: '12px 18px', borderRadius: '8px', border: 'none', background: '#3498db', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem' }}
+            >
+              {adding ? '...' : 'הוסף'}
+            </button>
           </form>
         )}
 
-        {/* רשימת שירים נקייה (שם בלבד - ללא סולם) */}
+        {/* רשימת השירים */}
         {loading ? (
-          <div style={{ textAlign: 'center', color: '#00ff88', padding: '20px' }}>טוען שירים...</div>
+          <div style={{ textAlign: 'center', color: '#2ecc71', padding: '20px' }}>טוען שירים...</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
             {songs.map((song, index) => (
               <div 
                 key={song.id}
                 onClick={() => router.push(`/song/${song.id}`)}
-                style={{ background: '#0d1810', padding: '16px', borderRadius: '12px', border: '1px solid #1c3523', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}
+                style={{ background: '#0d1310', padding: '14px 16px', borderRadius: '10px', border: '1px solid #22332a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}
               >
-                <div style={{ fontSize: '17px', fontWeight: 'bold', color: '#fff' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#e8f5e9' }}>
                   {index + 1}. {song.title}
                 </div>
-                <div style={{ color: '#00ff88', fontSize: '18px' }}>➔</div>
+                <div style={{ color: '#2ecc71', fontSize: '1.2rem' }}>➔</div>
               </div>
             ))}
           </div>

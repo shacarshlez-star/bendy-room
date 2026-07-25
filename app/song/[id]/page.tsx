@@ -145,6 +145,13 @@ export default function SongPage() {
     setSong({ ...song, sections: newSections })
   }
 
+  const addBarToSection = (sIdx: number) => {
+    if (!song) return
+    const newSections = [...song.sections]
+    newSections[sIdx].bars.push({ chord: 'Am' })
+    setSong({ ...song, sections: newSections })
+  }
+
   const removeSection = (sIdx: number) => {
     if (!song) return
     const newSections = song.sections.filter((_, idx) => idx !== sIdx)
@@ -155,7 +162,7 @@ export default function SongPage() {
     if (!song) return
     const newSections = [
       ...song.sections,
-      { title: '🎸 חלק חדש', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'E' }, { chord: 'Am' }] }
+      { title: '🎸 C Part / חלק חדש', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'E' }, { chord: 'Am' }] }
     ]
     setSong({ ...song, sections: newSections })
   }
@@ -180,7 +187,7 @@ export default function SongPage() {
           ➔ חזרה לסטליסט
         </button>
 
-        {/* כותרת השיר והסולם - הטפט המקורי */}
+        {/* כותרת השיר והסולם - "הטפט" המקורי */}
         <div style={{ borderBottom: '2px solid #16221c', paddingBottom: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {role === 'admin' && isEditing ? (
@@ -198,12 +205,12 @@ export default function SongPage() {
             </div>
           </div>
 
-          {/* שדה הזנת קישור - פתוח לאדמין במצב עריכה בלבד */}
+          {/* שדה הזנת קישור לשיר - לאדמין במצב עריכה */}
           {role === 'admin' && isEditing && (
             <div style={{ marginTop: '5px' }}>
               <input 
                 type="text" 
-                placeholder="הכנס קישור לשיר (YouTube / Audio URL)..." 
+                placeholder="קישור לשיר (YouTube / Audio)..." 
                 value={song.audio_url || ''} 
                 onChange={(e) => setSong({ ...song, audio_url: e.target.value })}
                 style={{ width: '100%', background: '#0d1310', border: '1px solid #3498db', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.85rem', boxSizing: 'border-box' }}
@@ -211,7 +218,7 @@ export default function SongPage() {
             </div>
           )}
 
-          {/* מודולציה - פתוחה לאדמין במצב עריכה בלבד */}
+          {/* שינוי מודולציה זמני (+/-) - לאדמין במצב עריכה */}
           {role === 'admin' && isEditing && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#16221c', padding: '10px', borderRadius: '8px' }}>
               <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>שינוי סולם זמני (+/-):</div>
@@ -266,7 +273,7 @@ export default function SongPage() {
 
               {/* צוואר הגיטרה והאקורדים (Fretboard UI) */}
               <div style={{ backgroundColor: '#0d1310', border: '1px solid #22332a', borderRadius: '10px', padding: '20px 10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-around', fontFamily: "'Courier New', Courier, monospace", fontSize: '1.8rem', fontWeight: 'bold', color: '#2ecc71' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-around', fontFamily: "'Courier New', Courier, monospace", fontSize: '1.8rem', fontWeight: 'bold', color: '#2ecc71', flexWrap: 'wrap', gap: '8px' }}>
                   {sec.bars.map((bar, bIdx) => (
                     <span key={bIdx} style={{ backgroundColor: (role === 'admin' && isEditing) ? '#1c2d24' : '#111a15', padding: '2px 10px', borderRadius: '4px', border: (role === 'admin' && isEditing) ? '1px dashed #3498db' : 'none', color: (role === 'admin' && isEditing) ? '#fff' : '#2ecc71' }}>
                       {role === 'admin' && isEditing ? (
@@ -293,43 +300,55 @@ export default function SongPage() {
                   <div style={{ height: '2px', backgroundColor: '#4f685a', width: '100%' }}></div>
                 </div>
               </div>
+
+              {/* כפתור הוספת אקורד/תיבה לחלק הספציפי (לאדמין בעריכה) */}
+              {role === 'admin' && isEditing && (
+                <button 
+                  onClick={() => addBarToSection(sIdx)}
+                  style={{ marginTop: '8px', background: 'transparent', color: '#3498db', border: '1px dashed #3498db', borderRadius: '6px', width: '100%', padding: '6px', cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  + הוסף אקורד לחלק זה
+                </button>
+              )}
             </div>
           ))}
         </div>
 
-        {/* סרגל כפתורי אדמין בלבד */}
+        {/* סרגל כפתורי אדמין - עריכת מבנה והוספת C Part */}
         {role === 'admin' && (
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-            <button 
-              onClick={toggleStructureEdit}
-              disabled={saving}
-              style={{ 
-                flex: 1, 
-                backgroundColor: 'transparent', 
-                padding: '12px', 
-                borderRadius: '8px', 
-                fontWeight: 'bold', 
-                fontSize: '0.95rem', 
-                cursor: 'pointer',
-                color: isEditing ? '#2ecc71' : '#e8f5e9',
-                border: isEditing ? '2px solid #2ecc71' : '1px solid #4f685a'
-              }}
-            >
-              {saving ? 'שומר...' : (isEditing ? '💾 שמור סולם, כותרות ומבנה' : '⚙️ ערוך מבנה ואקורדים')}
-            </button>
-
-            {isEditing && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button 
-                onClick={addNewPart}
-                style={{ flex: 1, backgroundColor: 'transparent', padding: '12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', color: '#3498db', border: '2px dashed #3498db' }}
+                onClick={toggleStructureEdit}
+                disabled={saving}
+                style={{ 
+                  flex: 1, 
+                  backgroundColor: 'transparent', 
+                  padding: '12px', 
+                  borderRadius: '8px', 
+                  fontWeight: 'bold', 
+                  fontSize: '0.95rem', 
+                  cursor: 'pointer',
+                  color: isEditing ? '#2ecc71' : '#e8f5e9',
+                  border: isEditing ? '2px solid #2ecc71' : '1px solid #4f685a'
+                }}
               >
-                ➕ הוסף חלק
+                {saving ? 'שומר...' : (isEditing ? '💾 שמור סולם, כותרות ומבנה' : '⚙️ ערוך מבנה ואקורדים')}
               </button>
-            )}
+
+              {isEditing && (
+                <button 
+                  onClick={addNewPart}
+                  style={{ flex: 1, backgroundColor: 'transparent', padding: '12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '0.95rem', cursor: 'pointer', color: '#3498db', border: '2px dashed #3498db' }}
+                >
+                  ➕ הוסף C Part / חלק
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* 🎧 כפתור השמעת השיר המקורי לנגן בלבד - מופיע תמיד בתחתית המסך! */}
+        {/* השמעת השיר המקורי לנגן */}
         {role === 'viewer' && (
           <div style={{ marginTop: '25px', textAlign: 'center' }}>
             {song.audio_url && song.audio_url.trim() !== '' ? (
