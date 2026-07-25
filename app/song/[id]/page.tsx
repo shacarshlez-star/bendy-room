@@ -198,7 +198,7 @@ export default function SongPage() {
             </div>
           </div>
 
-          {/* שדה לעריכת קישור שיר מקורי - לאדמין במצב עריכה בלבד */}
+          {/* שדה הזנת קישור - פתוח לאדמין במצב עריכה בלבד */}
           {role === 'admin' && isEditing && (
             <div style={{ marginTop: '5px' }}>
               <input 
@@ -329,17 +329,23 @@ export default function SongPage() {
           </div>
         )}
 
-        {/* 🎧 כפתור השמעת השיר המקורי לנגן (לחצן קליק בלבד ללא אפשרות עריכה) */}
-        {role === 'viewer' && song.audio_url && (
+        {/* 🎧 כפתור השמעת השיר המקורי לנגן בלבד - מופיע תמיד בתחתית המסך! */}
+        {role === 'viewer' && (
           <div style={{ marginTop: '25px', textAlign: 'center' }}>
-            <a 
-              href={song.audio_url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ textDecoration: 'none', display: 'block', width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ff9800', background: '#16221c', color: '#ff9800', fontWeight: 'bold', fontSize: '1rem', boxSizing: 'border-box' }}
-            >
-              🎧 השמעת השיר המקורי
-            </a>
+            {song.audio_url && song.audio_url.trim() !== '' ? (
+              <a 
+                href={song.audio_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'none', display: 'block', width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ff9800', background: '#16221c', color: '#ff9800', fontWeight: 'bold', fontSize: '1rem', boxSizing: 'border-box' }}
+              >
+                🎧 השמעת השיר המקורי
+              </a>
+            ) : (
+              <div style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #333', background: '#0d1310', color: '#666', fontSize: '0.85rem', boxSizing: 'border-box' }}>
+                🎧 לא הוגדר קישור לשיר מקורי
+              </div>
+            )}
           </div>
         )}
 
