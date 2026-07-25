@@ -26,8 +26,13 @@ export default function SetlistPage() {
   const [adding, setAdding] = useState(false)
 
   useEffect(() => {
-    const savedRole = (localStorage.getItem('bendy_user_role') as 'admin' | 'viewer') || 'viewer'
-    setRole(savedRole)
+    // טעינת תפקיד מבוטחת
+    const savedRole = localStorage.getItem('bendy_user_role')
+    if (savedRole === 'admin') {
+      setRole('admin')
+    } else {
+      setRole('viewer')
+    }
     fetchSongs()
   }, [])
 
@@ -48,7 +53,14 @@ export default function SetlistPage() {
 
     setAdding(true)
     const { error } = await supabase.from('songs').insert([
-      { title: newTitle.trim(), key: newKey, bpm: 120, sections: [] }
+      { 
+        title: newTitle.trim(), 
+        key: newKey, 
+        bpm: 120, 
+        sections: [
+          { title: 'בית 1 🏠', bars: [{ chord: newKey }] }
+        ] 
+      }
     ])
 
     if (error) {
@@ -62,32 +74,32 @@ export default function SetlistPage() {
   }
 
   return (
-    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#00ff88', fontFamily: 'sans-serif', direction: 'rtl', padding: '16px', boxSizing: 'border-box', width: '100vw', overflowX: 'hidden' }}>
-      <div style={{ maxWidth: '400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#00ff88', fontFamily: 'sans-serif', direction: 'rtl', padding: '16px', boxSizing: 'border-box' }}>
+      <div style={{ maxWidth: '400px', margin: '0 auto', boxSizing: 'border-box' }}>
         
-        {/* כותרת ואינדיקציית תפקיד */}
+        {/* כותרת וכפתור הוספה מאוזנים */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
             <h1 style={{ color: '#00ff88', fontSize: '22px', margin: 0, fontWeight: 'bold' }}>סטליסט חזרה 🎸</h1>
             <span style={{ fontSize: '12px', color: '#888' }}>
-              {role === 'admin' ? 'מצב מנהל (עריכה פתוחה)' : 'מצב נגן (צפייה בלבד)'}
+              {role === 'admin' ? 'מצב מנהל מערכת' : 'מצב נגן (צפייה בלבד)'}
             </span>
           </div>
-          
+
           {role === 'admin' && (
             <button 
               onClick={() => setShowAddForm(!showAddForm)}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+              style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
             >
-              {showAddForm ? 'סגור' : '+ הוסף שיר'}
+              {showAddForm ? 'ביטול' : '+ הוסף שיר'}
             </button>
           )}
         </div>
 
-        {/* טופס הוספת שיר מיושר ומתוחם לחלוטין */}
+        {/* טופס הוספה מתוחם בדיוק ללא זליגה */}
         {role === 'admin' && showAddForm && (
-          <form onSubmit={handleAddSong} style={{ background: '#0d1810', padding: '12px', borderRadius: '12px', border: '1px solid #00ff88', marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+          <form onSubmit={handleAddSong} style={{ background: '#0d1810', padding: '14px', borderRadius: '12px', border: '1px solid #00ff88', marginBottom: '20px', boxSizing: 'border-box', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
               <input 
                 type="text" 
                 placeholder="שם השיר החדש..." 
@@ -108,7 +120,7 @@ export default function SetlistPage() {
                   disabled={adding}
                   style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', background: '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', boxSizing: 'border-box' }}
                 >
-                  {adding ? 'מוסיף...' : 'שמור'}
+                  {adding ? 'שומר...' : 'הוסף שיר'}
                 </button>
               </div>
             </div>
@@ -119,7 +131,7 @@ export default function SetlistPage() {
         {loading ? (
           <div style={{ textAlign: 'center', color: '#00ff88', padding: '20px' }}>טוען שירים...</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
             {songs.map((song, index) => (
               <div 
                 key={song.id}

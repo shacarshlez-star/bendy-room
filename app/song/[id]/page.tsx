@@ -24,6 +24,26 @@ interface SongData {
   sections: Section[]
 }
 
+// לוגיקת טרנספוזיציה (שינוי סולם)
+const CHROMATIC_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+const transposeChord = (chord: string, semitones: number) => {
+  return chord.replace(/[A-G][#b]?/g, (match) => {
+    let index = CHROMATIC_SCALE.indexOf(match)
+    if (index === -1) {
+      if (match === 'Db') index = 1
+      else if (match === 'Eb') index = 3
+      else if (match === 'Gb') index = 6
+      else if (match === 'Ab') index = 8
+      else if (match === 'Bb') index = 10
+      else return match
+    }
+    let newIndex = (index + semitones) % 12
+    if (newIndex < 0) newIndex += 12
+    return CHROMATIC_SCALE[newIndex]
+  })
+}
+
 export default function SongPage() {
   const params = useParams()
   const router = useRouter()
@@ -36,8 +56,12 @@ export default function SongPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    const savedRole = (localStorage.getItem('bendy_user_role') as 'admin' | 'viewer') || 'viewer'
-    setRole(savedRole)
+    const savedRole = localStorage.getItem('bendy_user_role')
+    if (savedRole === 'admin') {
+      setRole('admin')
+    } else {
+      setRole('viewer')
+    }
     fetchSong()
   }, [songId])
 
@@ -58,12 +82,25 @@ export default function SongPage() {
         key: data.key || 'Cm',
         sections: data.sections && data.sections.length > 0 ? data.sections : [
           { title: 'בית 1 🏠', bars: [{ chord: 'Cm' }, { chord: 'G#' }, { chord: 'D#' }, { chord: 'A#' }, { chord: 'C' }, { chord: 'G' }, { chord: 'Am' }, { chord: 'F' }] },
-          { title: 'פזמון 🎤', bars: [{ chord: 'G#' }, { chord: 'A#' }, { chord: 'Cm' }, { chord: 'Gm' }] },
-          { title: 'בדיקה 🎼', bars: [{ chord: 'Am' }, { chord: 'Dm' }, { chord: 'G' }, { chord: 'C' }] }
+          { title: 'פזמון 🎤', bars: [{ chord: 'G#' }, { chord: 'A#' }, { chord: 'Cm' }, { chord: 'Gm' }] }
         ]
       })
     }
     setLoading(false)
+  }
+
+  // הפעלת מודולציית סולם (+1 / -1)
+  const handleTranspose = (semitones: number) => {
+    if (!song) return
+    const updatedSections = song.sections.map(sec => ({
+      ...sec,
+      bars: sec.bars.map(bar => ({
+        ...bar,
+        chord: transposeChord(bar.chord, semitones)
+      }))
+    }))
+    const updatedKey = transposeChord(song.key, semitones)
+    setSong({ ...song, key: updatedKey, sections: updatedSections })
   }
 
   const handleSave = async () => {
@@ -81,10 +118,17 @@ export default function SongPage() {
     if (error) {
       alert('שגיאה בשמירה: ' + error.message)
     } else {
-      alert('האקורדים נשמרו בהצלחה!')
+      alert('השיר עודכן ונשמר בהצלחה!')
       setIsEditing(false)
     }
     setSaving(false)
+  }
+
+  const updateSectionTitle = (sIdx: number, title: string) => {
+    if (!song) return
+    const newSections = [...song.sections]
+    newSections[sIdx].title = title
+    setSong({ ...song, sections: newSections })
   }
 
   const updateBarChord = (sIdx: number, bIdx: number, chord: string) => {
@@ -101,6 +145,15 @@ export default function SongPage() {
     setSong({ ...song, sections: newSections })
   }
 
+  const addSection = () => {
+    if (!song) return
+    const newSections = [
+      ...song.sections,
+      { title: `בית ${song.sections.length + 1}`, bars: [{ chord: 'C' }] }
+    ]
+    setSong({ ...song, sections: newSections })
+  }
+
   if (loading) {
     return <div style={{ padding: '40px', color: '#00ff88', textAlign: 'center', backgroundColor: '#060d08', minHeight: '100vh', fontFamily: 'sans-serif' }}>טוען שיר...</div>
   }
@@ -110,8 +163,8 @@ export default function SongPage() {
   }
 
   return (
-    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'sans-serif', direction: 'rtl', padding: '16px', boxSizing: 'border-box', width: '100vw', overflowX: 'hidden' }}>
-      <div style={{ maxWidth: '400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'sans-serif', direction: 'rtl', padding: '16px', boxSizing: 'border-box' }}>
+      <div style={{ maxWidth: '400px', margin: '0 auto', boxSizing: 'border-box' }}>
         
         {/* סרגל עליון */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -125,19 +178,26 @@ export default function SongPage() {
           {role === 'admin' && (
             <button 
               onClick={() => setIsEditing(!isEditing)}
-              style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: isEditing ? '#ff9800' : '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+              style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: isEditing ? '#ff9800' : '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
             >
-              {isEditing ? 'סגור עריכה' : '✏️ ערוך אקורדים'}
+              {isEditing ? 'סגור עריכה' : '✏️ ערוך שיר (אדמין)'}
             </button>
           )}
         </div>
 
-        {/* כותרת השיר והסולם */}
+        {/* כותרת, סולם ומודולציה (Transpose) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h1 style={{ fontSize: '22px', color: '#00ff88', margin: 0, fontWeight: 'bold' }}>{song.title}</h1>
-          <span style={{ fontSize: '13px', color: '#00ff88', background: '#0d1810', padding: '4px 10px', borderRadius: '6px', border: '1px solid #1c3523' }}>
-            סולם: {song.key}
-          </span>
+          <div>
+            <h1 style={{ fontSize: '22px', color: '#00ff88', margin: 0, fontWeight: 'bold' }}>{song.title}</h1>
+            <span style={{ fontSize: '13px', color: '#888' }}>סולם נוכחי: <strong style={{ color: '#00ff88' }}>{song.key}</strong></span>
+          </div>
+
+          {/* כפתורי מודולציה / טרנספוזיציה בצד שמאל למעלה */}
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', background: '#0d1810', padding: '4px 8px', borderRadius: '8px', border: '1px solid #1c3523' }}>
+            <span style={{ fontSize: '11px', color: '#888' }}>סולם:</span>
+            <button onClick={() => handleTranspose(-1)} style={{ background: '#1c3523', color: '#00ff88', border: 'none', borderRadius: '4px', width: '26px', height: '26px', fontWeight: 'bold', cursor: 'pointer' }}>-1</button>
+            <button onClick={() => handleTranspose(1)} style={{ background: '#1c3523', color: '#00ff88', border: 'none', borderRadius: '4px', width: '26px', height: '26px', fontWeight: 'bold', cursor: 'pointer' }}>+1</button>
+          </div>
         </div>
 
         {/* פאנל שמירה לאדמין */}
@@ -148,21 +208,31 @@ export default function SongPage() {
               disabled={saving}
               style={{ width: '100%', padding: '10px', background: '#00ff88', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
             >
-              {saving ? 'שומר...' : '💾 שמור אקורדים מעודכנים'}
+              {saving ? 'שומר...' : '💾 שמור שינויים ואקורדים'}
             </button>
           </div>
         )}
 
-        {/* תצוגת סרגל התווים הירוק והמקורי מהסרטון */}
+        {/* תצוגת הבתים והאקורדים */}
         {song.sections.map((sec, sIdx) => (
           <div key={sIdx} style={{ marginBottom: '20px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
-              <span style={{ background: '#1c3523', color: '#00ff88', padding: '3px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                {sec.title}
-              </span>
+              {isEditing ? (
+                <input 
+                  type="text" 
+                  value={sec.title} 
+                  onChange={(e) => updateSectionTitle(sIdx, e.target.value)}
+                  style={{ background: '#0d1810', border: '1px solid #00ff88', color: '#00ff88', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', textAlign: 'right' }}
+                />
+              ) : (
+                <span style={{ background: '#1c3523', color: '#00ff88', padding: '3px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}>
+                  {sec.title}
+                </span>
+              )}
             </div>
 
+            {/* סרגל התווים */}
             <div style={{ 
               background: '#0a140d', 
               borderRadius: '10px', 
@@ -204,11 +274,14 @@ export default function SongPage() {
           </div>
         ))}
 
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #1c3523', background: '#0d1810', color: '#ff9800', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}>
-            🎧 השמעת השיר המקורי
+        {isEditing && (
+          <button 
+            onClick={addSection}
+            style={{ width: '100%', padding: '10px', background: '#1c3523', color: '#00ff88', border: '1px solid #00ff88', borderRadius: '8px', cursor: 'pointer', marginBottom: '20px', fontWeight: 'bold' }}
+          >
+            + הוסף בית / פזמון جديد
           </button>
-        </div>
+        )}
 
       </div>
     </div>
