@@ -102,7 +102,6 @@ export default function SongPage() {
       if (!song) return
       setSaving(true)
       
-      // עדכון סולם הבסיס במידה ונעשתה מודולציה בזמן עריכה
       const updatedKey = transposeChord(song.key, currentShift)
       const updatedSections = song.sections.map(sec => ({
         ...sec,
@@ -199,7 +198,20 @@ export default function SongPage() {
             </div>
           </div>
 
-          {/* מודולציה זמינה בלעדית לאדמין במצב עריכה בלבד */}
+          {/* שדה לעריכת קישור שיר מקורי - לאדמין במצב עריכה בלבד */}
+          {role === 'admin' && isEditing && (
+            <div style={{ marginTop: '5px' }}>
+              <input 
+                type="text" 
+                placeholder="הכנס קישור לשיר (YouTube / Audio URL)..." 
+                value={song.audio_url || ''} 
+                onChange={(e) => setSong({ ...song, audio_url: e.target.value })}
+                style={{ width: '100%', background: '#0d1310', border: '1px solid #3498db', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.85rem', boxSizing: 'border-box' }}
+              />
+            </div>
+          )}
+
+          {/* מודולציה - פתוחה לאדמין במצב עריכה בלבד */}
           {role === 'admin' && isEditing && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#16221c', padding: '10px', borderRadius: '8px' }}>
               <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>שינוי סולם זמני (+/-):</div>
@@ -317,14 +329,14 @@ export default function SongPage() {
           </div>
         )}
 
-        {/* השמעת השיר המקורי */}
-        {song.audio_url && (
+        {/* 🎧 כפתור השמעת השיר המקורי לנגן (לחצן קליק בלבד ללא אפשרות עריכה) */}
+        {role === 'viewer' && song.audio_url && (
           <div style={{ marginTop: '25px', textAlign: 'center' }}>
             <a 
               href={song.audio_url} 
               target="_blank" 
               rel="noopener noreferrer"
-              style={{ textDecoration: 'none', display: 'block', width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #22332a', background: '#16221c', color: '#ff9800', fontWeight: 'bold', fontSize: '0.95rem', boxSizing: 'border-box' }}
+              style={{ textDecoration: 'none', display: 'block', width: '100%', padding: '14px', borderRadius: '10px', border: '1px solid #ff9800', background: '#16221c', color: '#ff9800', fontWeight: 'bold', fontSize: '1rem', boxSizing: 'border-box' }}
             >
               🎧 השמעת השיר המקורי
             </a>
