@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -14,7 +14,6 @@ interface Song {
 }
 
 export default function SetlistPage() {
-  const router = useRouter()
   const [role, setRole] = useState<'admin' | 'viewer'>('viewer')
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,7 +54,6 @@ export default function SetlistPage() {
     if (!newTitle.trim()) return
 
     setAdding(true)
-    // הוספה נקייה ללא bpm:
     const { error } = await supabase.from('songs').insert([
       { 
         title: newTitle.trim(), 
@@ -125,22 +123,26 @@ export default function SetlistPage() {
           </form>
         )}
 
-        {/* רשימת שירים */}
+        {/* רשימת שירים כקישורים מובנים (Link) */}
         {loading ? (
           <div style={{ textAlign: 'center', color: '#2ecc71', padding: '20px' }}>טוען שירים...</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
             {songs.map((song, index) => (
-              <div 
-                key={song.id}
-                onClick={() => router.push(`/song/${song.id}`)}
-                style={{ background: '#0d1310', padding: '14px 16px', borderRadius: '10px', border: '1px solid #22332a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}
+              <Link 
+                key={song.id} 
+                href={`/song/${song.id}`}
+                style={{ textDecoration: 'none', display: 'block' }}
               >
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#e8f5e9' }}>
-                  {index + 1}. {song.title}
+                <div 
+                  style={{ background: '#0d1310', padding: '14px 16px', borderRadius: '10px', border: '1px solid #22332a', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}
+                >
+                  <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#e8f5e9' }}>
+                    {index + 1}. {song.title}
+                  </div>
+                  <div style={{ color: '#2ecc71', fontSize: '1.2rem' }}>➔</div>
                 </div>
-                <div style={{ color: '#2ecc71', fontSize: '1.2rem' }}>➔</div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
