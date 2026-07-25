@@ -57,14 +57,21 @@ export default function SongPage() {
   const [currentShift, setCurrentShift] = useState(0)
 
   useEffect(() => {
-    const savedRole = localStorage.getItem('bendy_user_role')
-    if (savedRole === 'admin') {
+    const savedRole = (localStorage.getItem('bendy_user_role') || localStorage.getItem('role') || '').toLowerCase()
+    if (['admin', 'מנהל', 'manager'].includes(savedRole)) {
       setRole('admin')
     } else {
       setRole('viewer')
     }
     fetchSong()
   }, [songId])
+
+  const toggleRole = () => {
+    const nextRole = role === 'admin' ? 'viewer' : 'admin'
+    setRole(nextRole)
+    localStorage.setItem('bendy_user_role', nextRole)
+    if (nextRole === 'viewer') setIsEditing(false)
+  }
 
   const fetchSong = async () => {
     setLoading(true)
@@ -179,15 +186,25 @@ export default function SongPage() {
     <div style={{ backgroundColor: '#0d1310', minHeight: '100vh', color: '#e8f5e9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', direction: 'rtl', padding: '15px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#111a15', borderRadius: '20px', padding: '20px', boxSizing: 'border-box' }}>
         
-        {/* חזרה לסטליסט */}
-        <button 
-          onClick={() => router.push('/setlist')}
-          style={{ background: 'transparent', border: 'none', color: '#2ecc71', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '15px', padding: 0 }}
-        >
-          ➔ חזרה לסטליסט
-        </button>
+        {/* סרגל עליון */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <button 
+            onClick={() => router.push('/setlist')}
+            style={{ background: 'transparent', border: 'none', color: '#2ecc71', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', padding: 0 }}
+          >
+            ➔ חזרה לסטליסט
+          </button>
 
-        {/* כותרת השיר והסולם - "הטפט" המקורי */}
+          {/* כפתור החלפת תפקיד מהירה - מבטיח שתוכל להפעיל אדמין בלחיצה אחת בכל רגע! */}
+          <button 
+            onClick={toggleRole}
+            style={{ background: role === 'admin' ? '#3498db' : '#1c2d24', color: '#fff', border: '1px solid #3498db', borderRadius: '20px', padding: '4px 12px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {role === 'admin' ? '👑 מצב מנהל' : '🎸 מצב נגן'}
+          </button>
+        </div>
+
+        {/* כותרת השיר והסולם - הטפט המקורי */}
         <div style={{ borderBottom: '2px solid #16221c', paddingBottom: '15px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {role === 'admin' && isEditing ? (

@@ -24,14 +24,20 @@ export default function SetlistPage() {
   const [adding, setAdding] = useState(false)
 
   useEffect(() => {
-    const savedRole = localStorage.getItem('bendy_user_role')
-    if (savedRole === 'admin') {
+    const savedRole = (localStorage.getItem('bendy_user_role') || localStorage.getItem('role') || '').toLowerCase()
+    if (['admin', 'מנהל', 'manager'].includes(savedRole)) {
       setRole('admin')
     } else {
       setRole('viewer')
     }
     fetchSongs()
   }, [])
+
+  const toggleRole = () => {
+    const nextRole = role === 'admin' ? 'viewer' : 'admin'
+    setRole(nextRole)
+    localStorage.setItem('bendy_user_role', nextRole)
+  }
 
   const fetchSongs = async () => {
     setLoading(true)
@@ -74,31 +80,36 @@ export default function SetlistPage() {
     <div style={{ backgroundColor: '#0d1310', minHeight: '100vh', color: '#e8f5e9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', direction: 'rtl', padding: '15px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#111a15', borderRadius: '20px', padding: '20px', boxSizing: 'border-box' }}>
         
-        {/* כותרת וכפתור הוספת שיר בצד שמאל למעלה (לאדמין) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #16221c', paddingBottom: '12px' }}>
-          <div>
-            <h1 style={{ color: '#2ecc71', fontSize: '1.4rem', margin: 0, fontWeight: 'bold' }}>סטליסט חזרה 🎸</h1>
-            <span style={{ fontSize: '0.8rem', color: '#a4b3a9' }}>
-              {role === 'admin' ? 'מצב מנהל' : 'מצב נגן'}
-            </span>
-          </div>
-
-          {role === 'admin' && (
-            <button 
-              onClick={() => setShowAddRow(!showAddRow)}
-              style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#2ecc71', color: '#0d1310', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem' }}
-            >
-              {showAddRow ? 'ביטול' : '+ הוסף שיר'}
-            </button>
-          )}
+        {/* סרגל עליון עם החלפת תפקיד מהירה */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h1 style={{ color: '#2ecc71', fontSize: '1.4rem', margin: 0, fontWeight: 'bold' }}>סטליסט חזרה 🎸</h1>
+          
+          <button 
+            onClick={toggleRole}
+            style={{ background: role === 'admin' ? '#3498db' : '#1c2d24', color: '#fff', border: '1px solid #3498db', borderRadius: '20px', padding: '4px 12px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {role === 'admin' ? '👑 מצב מנהל' : '🎸 מצב נגן'}
+          </button>
         </div>
 
-        {/* שורת קלט מהירה ופרקטית להוספת שיר (לאדמין) - מופיעה ישירות מעל הסטליסט */}
+        {/* כפתור הוספת שיר לאדמין בלבד */}
+        {role === 'admin' && (
+          <div style={{ marginBottom: '15px' }}>
+            <button 
+              onClick={() => setShowAddRow(!showAddRow)}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: '#2ecc71', color: '#0d1310', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.95rem' }}
+            >
+              {showAddRow ? 'סגור הוספה' : '+ הוסף שיר לסטליסט'}
+            </button>
+          </div>
+        )}
+
+        {/* שורת הוספה מהירה בלחיצה */}
         {role === 'admin' && showAddRow && (
           <form onSubmit={handleQuickAdd} style={{ display: 'flex', gap: '8px', marginBottom: '15px', width: '100%', boxSizing: 'border-box' }}>
             <input 
               type="text" 
-              placeholder="שם השיר..." 
+              placeholder="שם השיר החדש..." 
               value={newTitle} 
               onChange={(e) => setNewTitle(e.target.value)}
               autoFocus
