@@ -1,136 +1,149 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface Song {
-  id: string;
-  title: string;
-  current_key?: string;
+  id: string
+  title: string
+  key: string
 }
 
 export default function SetlistPage() {
-  const router = useRouter();
-  const [songs, setSongs] = useState<Song[]>([]);
-  const [showAddSong, setShowAddSong] = useState(false);
-  const [newSongTitle, setNewSongTitle] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter()
+  const [role, setRole] = useState<'admin' | 'viewer'>('viewer')
+  const [songs, setSongs] = useState<Song[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // הוספת שיר חדש (אדמין)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newKey, setNewKey] = useState('C')
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
-    fetchSetlistData();
-  }, []);
+    const savedRole = (localStorage.getItem('bendy_user_role') as 'admin' | 'viewer') || 'viewer'
+    setRole(savedRole)
+    fetchSongs()
+  }, [])
 
-  const fetchSetlistData = async () => {
-    setIsLoading(true);
-
-    const { data: songsData } = await supabase
-      .from('songs')
-      .select('id, title, current_key')
-      .order('created_at', { ascending: true });
-
-    if (songsData) {
-      setSongs(songsData);
+  const fetchSongs = async () => {
+    setLoading(true)
+    const { data, error } = await supabase.from('songs').select('*')
+    if (error) {
+      console.error('Error loading songs:', error)
+    } else if (data) {
+      setSongs(data)
     }
+    setLoading(false)
+  }
 
-    setIsLoading(false);
-  };
+  const handleAddSong = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTitle.trim()) return
 
-  const handleAddSong = async () => {
-    if (!newSongTitle.trim()) return;
-
-    const { error } = await supabase
-      .from('songs')
-      .insert([
-        {
-          title: newSongTitle,
-          current_key: 'Am',
-          parts: [
-            { id: 'p1', title: 'בית 1', icon: '🏠', chordLines: [['Am', 'F', 'C', 'G']] },
-            { id: 'p2', title: 'פזמון', icon: '🎤', chordLines: [['F', 'G', 'Am', 'Em']] }
-          ]
-        }
-      ]);
+    setAdding(true)
+    const { error } = await supabase.from('songs').insert([
+      { title: newTitle.trim(), key: newKey, bpm: 120, sections: [] }
+    ])
 
     if (error) {
-      alert('שגיאה בהוספת השיר: ' + error.message);
+      alert('שגיאה בהוספת שיר: ' + error.message)
     } else {
-      setNewSongTitle('');
-      setShowAddSong(false);
-      fetchSetlistData();
+      setNewTitle('')
+      setShowAddForm(false)
+      fetchSongs()
     }
-  };
+    setAdding(false)
+  }
 
   return (
-    <div style={{ backgroundColor: '#0d1310', color: '#e8f5e9', minHeight: '100vh', display: 'flex', justifyContent: 'center', padding: '15px', fontFamily: 'sans-serif', direction: 'rtl' }}>
-      <div style={{ width: '100%', maxWidth: '500px', backgroundColor: '#111a15', borderRadius: '20px', padding: '20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ backgroundColor: '#0a0d0a', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'sans-serif', direction: 'rtl', padding: '20px' }}>
+      <div style={{ maxWidth: '500px', margin: '0 auto' }}>
         
-        {/* כותרת סטליסט */}
-        <div style={{ borderBottom: '2px solid #16221c', paddingBottom: '12px' }}>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#2ecc71', margin: 0 }}>🎸 סטליסט חזרה</h1>
+        {/* כותרת */}
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ color: '#00ff88', fontSize: '28px', margin: '0 0 5px 0' }}>🎸 סטליסט חזרה</h1>
+          <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>
+            {role === 'admin' ? 'מצב מנהל (אפשרות עריכה)' : 'מצב נגן (צפייה בלבד)'}
+          </p>
         </div>
 
-        {/* רשימת השירים */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 'bold', color: '#2ecc71', fontSize: '1.1rem' }}>שירים:</div>
-            <button 
-              onClick={() => setShowAddSong(!showAddSong)} 
-              style={{ backgroundColor: '#27ae60', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
-            >
-              ➕ הוסף שיר
-            </button>
-          </div>
-
-          {showAddSong && (
-            <div style={{ backgroundColor: '#16221c', padding: '12px', borderRadius: '10px', border: '1px solid #27ae60', display: 'flex', gap: '8px' }}>
-              <input 
-                type="text" 
-                placeholder="שם השיר החדש..." 
-                value={newSongTitle} 
-                onChange={e => setNewSongTitle(e.target.value)} 
-                style={{ flex: 1, backgroundColor: '#0d1310', border: '1px solid #22332a', color: '#fff', padding: '10px', borderRadius: '6px' }} 
-              />
+        {/* אזור הוספת שיר מיושר ומאובטח */}
+        {role === 'admin' && (
+          <div style={{ marginBottom: '25px' }}>
+            {!showAddForm ? (
               <button 
-                onClick={handleAddSong} 
-                style={{ backgroundColor: '#27ae60', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+                onClick={() => setShowAddForm(true)}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: 'none', background: '#00ff88', color: '#0a0d0a', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer' }}
               >
-                הוסף
+                + הוסף שיר חדש
               </button>
-            </div>
-          )}
+            ) : (
+              <form onSubmit={handleAddSong} style={{ background: '#111813', padding: '15px', borderRadius: '12px', border: '1px solid #00ff88' }}>
+                <div style={{ display: 'flex', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+                  <input 
+                    type="text" 
+                    placeholder="שם השיר..." 
+                    value={newTitle} 
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    style={{ flex: 1, minWidth: 0, padding: '10px', borderRadius: '8px', border: '1px solid #1a3322', background: '#0a0d0a', color: '#fff', boxSizing: 'border-box' }}
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="סולם" 
+                    value={newKey} 
+                    onChange={(e) => setNewKey(e.target.value)}
+                    style={{ width: '60px', padding: '10px', borderRadius: '8px', border: '1px solid #1a3322', background: '#0a0d0a', color: '#00ff88', textAlign: 'center', boxSizing: 'border-box' }}
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={adding}
+                    style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#00ff88', color: '#0a0d0a', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {adding ? '...' : 'הוסף'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
 
-          {isLoading ? (
-            <div style={{ color: '#a4b3a9', textAlign: 'center', padding: '20px' }}>טוען שירים...</div>
-          ) : songs.length === 0 ? (
-            <div style={{ color: '#a4b3a9', textAlign: 'center', padding: '30px', backgroundColor: '#16221c', borderRadius: '12px' }}>הסטליסט ריק. לחץ על "הוסף שיר" כדי להתחיל.</div>
-          ) : (
-            songs.map((song, index) => (
+        {/* רשימת השירים */}
+        <h2 style={{ fontSize: '18px', color: '#888', marginBottom: '15px' }}>שירים:</h2>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', color: '#666' }}>טוען רשימה...</div>
+        ) : songs.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#666', padding: '20px' }}>אין שירים ברשימה עדיין</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {songs.map((song, index) => (
               <div 
                 key={song.id}
                 onClick={() => router.push(`/song/${song.id}`)}
-                style={{
-                  backgroundColor: '#16221c',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  borderRight: '4px solid #2ecc71',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer'
-                }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111813', padding: '16px', borderRadius: '12px', border: '1px solid #1a3322', cursor: 'pointer' }}
               >
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.15rem' }}>{index + 1}. {song.title}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#a4b3a9', marginTop: '4px' }}>סולם: <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>{song.current_key || 'Am'}</span></div>
+                <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#fff' }}>
+                  {index + 1}. {song.title}
                 </div>
-                <div style={{ color: '#2ecc71', fontSize: '1.3rem' }}>➔</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', color: '#00ff88', background: '#0a0d0a', padding: '4px 8px', borderRadius: '6px' }}>
+                    סולם: {song.key}
+                  </span>
+                  <span style={{ color: '#00ff88', fontSize: '18px' }}>➔</span>
+                </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>
-  );
+  )
 }
