@@ -10,7 +10,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface Bar {
   chord: string
-  lyrics?: string
 }
 
 interface Section {
@@ -21,9 +20,7 @@ interface Section {
 interface SongData {
   id?: string
   title: string
-  artist?: string
   key: string
-  bpm?: number
   sections: Section[]
 }
 
@@ -58,9 +55,7 @@ export default function SongPage() {
       setSong({
         id: data.id,
         title: data.title || '',
-        artist: data.artist || '',
         key: data.key || 'Cm',
-        bpm: data.bpm || 120,
         sections: data.sections && data.sections.length > 0 ? data.sections : [
           { title: 'בית 1 🏠', bars: [{ chord: 'Cm' }, { chord: 'G#' }, { chord: 'D#' }, { chord: 'A#' }, { chord: 'C' }, { chord: 'G' }, { chord: 'Am' }, { chord: 'F' }] },
           { title: 'פזמון 🎤', bars: [{ chord: 'G#' }, { chord: 'A#' }, { chord: 'Cm' }, { chord: 'Gm' }] },
@@ -86,7 +81,7 @@ export default function SongPage() {
     if (error) {
       alert('שגיאה בשמירה: ' + error.message)
     } else {
-      alert('השיר עודכן בהצלחה!')
+      alert('האקורדים נשמרו בהצלחה!')
       setIsEditing(false)
     }
     setSaving(false)
@@ -115,14 +110,14 @@ export default function SongPage() {
   }
 
   return (
-    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'sans-serif', direction: 'rtl', padding: '20px', boxSizing: 'border-box' }}>
-      <div style={{ maxWidth: '450px', margin: '0 auto', boxSizing: 'border-box' }}>
+    <div style={{ backgroundColor: '#060d08', minHeight: '100vh', color: '#e0e0e0', fontFamily: 'sans-serif', direction: 'rtl', padding: '16px', boxSizing: 'border-box', width: '100vw', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {/* סרגל עליון */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <button 
             onClick={() => router.push('/setlist')}
-            style={{ background: 'transparent', border: 'none', color: '#00ff88', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold' }}
+            style={{ background: 'transparent', border: 'none', color: '#00ff88', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
           >
             ➔ חזרה לסטליסט
           </button>
@@ -130,7 +125,7 @@ export default function SongPage() {
           {role === 'admin' && (
             <button 
               onClick={() => setIsEditing(!isEditing)}
-              style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: isEditing ? '#ff9800' : '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+              style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: isEditing ? '#ff9800' : '#00ff88', color: '#000', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
             >
               {isEditing ? 'סגור עריכה' : '✏️ ערוך אקורדים'}
             </button>
@@ -138,61 +133,59 @@ export default function SongPage() {
         </div>
 
         {/* כותרת השיר והסולם */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-          <h1 style={{ fontSize: '26px', color: '#00ff88', margin: 0, fontWeight: 'bold' }}>{song.title}</h1>
-          <span style={{ fontSize: '15px', color: '#00ff88', background: '#0d1810', padding: '6px 12px', borderRadius: '8px', border: '1px solid #1c3523' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h1 style={{ fontSize: '22px', color: '#00ff88', margin: 0, fontWeight: 'bold' }}>{song.title}</h1>
+          <span style={{ fontSize: '13px', color: '#00ff88', background: '#0d1810', padding: '4px 10px', borderRadius: '6px', border: '1px solid #1c3523' }}>
             סולם: {song.key}
           </span>
         </div>
 
-        {/* חלק עריכת מנהל */}
+        {/* פאנל שמירה לאדמין */}
         {isEditing && (
-          <div style={{ background: '#0d1810', padding: '15px', borderRadius: '12px', border: '1px solid #00ff88', marginBottom: '20px' }}>
+          <div style={{ background: '#0d1810', padding: '12px', borderRadius: '10px', border: '1px solid #00ff88', marginBottom: '16px' }}>
             <button 
               onClick={handleSave} 
               disabled={saving}
-              style={{ width: '100%', padding: '12px', background: '#00ff88', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '10px', background: '#00ff88', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
             >
               {saving ? 'שומר...' : '💾 שמור אקורדים מעודכנים'}
             </button>
           </div>
         )}
 
-        {/* תצוגת סרגל התווים הירוק המקורי מהסרטון */}
+        {/* תצוגת סרגל התווים הירוק והמקורי מהסרטון */}
         {song.sections.map((sec, sIdx) => (
-          <div key={sIdx} style={{ marginBottom: '25px' }}>
+          <div key={sIdx} style={{ marginBottom: '20px' }}>
             
-            {/* כותרת החלק (בית / פזמון) */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-              <span style={{ background: '#1c3523', color: '#00ff88', padding: '4px 12px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+              <span style={{ background: '#1c3523', color: '#00ff88', padding: '3px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}>
                 {sec.title}
               </span>
             </div>
 
-            {/* סרגל התווים */}
             <div style={{ 
               background: '#0a140d', 
-              borderRadius: '12px', 
+              borderRadius: '10px', 
               border: '1px solid #1c3523', 
-              padding: '15px',
+              padding: '12px',
               backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 11px, #1a3322 12px)',
               backgroundSize: '100% 12px',
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '12px',
+              gap: '10px',
               textAlign: 'center'
             }}>
               {sec.bars.map((bar, bIdx) => (
-                <div key={bIdx} style={{ padding: '8px 0' }}>
+                <div key={bIdx} style={{ padding: '6px 0' }}>
                   {isEditing ? (
                     <input 
                       type="text" 
                       value={bar.chord} 
                       onChange={(e) => updateBarChord(sIdx, bIdx, e.target.value)}
-                      style={{ width: '100%', background: '#000', border: '1px solid #00ff88', color: '#00ff88', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', borderRadius: '6px' }}
+                      style={{ width: '100%', background: '#000', border: '1px solid #00ff88', color: '#00ff88', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', borderRadius: '4px' }}
                     />
                   ) : (
-                    <span style={{ color: '#00ff88', fontWeight: 'bold', fontSize: '22px', textShadow: '0 0 5px rgba(0,255,136,0.3)' }}>
+                    <span style={{ color: '#00ff88', fontWeight: 'bold', fontSize: '20px', textShadow: '0 0 5px rgba(0,255,136,0.3)' }}>
                       {bar.chord}
                     </span>
                   )}
@@ -211,9 +204,8 @@ export default function SongPage() {
           </div>
         ))}
 
-        {/* כפתור השמעת השיר המקורי בתחתית */}
-        <div style={{ marginTop: '30px', textAlign: 'center' }}>
-          <button style={{ width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #1c3523', background: '#0d1810', color: '#ff9800', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer' }}>
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #1c3523', background: '#0d1810', color: '#ff9800', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}>
             🎧 השמעת השיר המקורי
           </button>
         </div>
