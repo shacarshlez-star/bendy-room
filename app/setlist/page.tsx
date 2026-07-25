@@ -73,6 +73,18 @@ export default function SetlistPage() {
     setAdding(false)
   }
 
+  const handleDeleteSong = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation() // מונע מעבר לעמוד השיר בלחיצה על מחיקה
+    if (!confirm('האם אתה בטוח שברצונך למחוק את השיר מהסטליסט?')) return
+
+    const { error } = await supabase.from('songs').delete().eq('id', id)
+    if (error) {
+      alert('שגיאה במחיקת השיר: ' + error.message)
+    } else {
+      fetchSongs()
+    }
+  }
+
   const navigateToSong = (id: string) => {
     window.location.href = `/song/${id}`
   }
@@ -140,7 +152,19 @@ export default function SetlistPage() {
                 <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#e8f5e9' }}>
                   {index + 1}. {song.title}
                 </div>
-                <div style={{ color: '#2ecc71', fontSize: '1.2rem' }}>➔</div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {role === 'admin' && (
+                    <button
+                      onClick={(e) => handleDeleteSong(e, song.id)}
+                      style={{ background: 'transparent', border: 'none', color: '#e74c3c', fontSize: '1.1rem', cursor: 'pointer', padding: '4px' }}
+                      title="מחק שיר"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                  <div style={{ color: '#2ecc71', fontSize: '1.2rem' }}>➔</div>
+                </div>
               </div>
             ))}
           </div>
