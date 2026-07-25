@@ -1,236 +1,319 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
-import { transposeChord } from '../../../utils/chordUtils';
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+interface Bar {
+  chord: string
+  lyrics: string
+}
+
+interface Section {
+  title: string
+  bars: Bar[]
+}
+
+interface SongData {
+  id?: string
+  title: string
+  artist: string
+  key: string
+  bpm: number
+  sections: Section[]
+}
 
 export default function SongPage() {
-  const router = useRouter();
-  const params = useParams();
-  const songId = params?.id as string;
+  const params = useParams()
+  const router = useRouter()
+  const songId = params.id as string
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [songTitle, setSongTitle] = useState('טוען שיר...');
-  const [currentKey, setCurrentKey] = useState('Am');
-  const [transpose, setTranspose] = useState(0);
-  const [songLink, setSongLink] = useState('');
-
-  const [parts, setParts] = useState([
-    { id: 'p1', title: 'בית 1', icon: '🏠', chordLines: [['Am', 'F', 'C', 'G']] },
-    { id: 'p2', title: 'פזמון', icon: '🎤', chordLines: [['F', 'G', 'Am', 'Em']] }
-  ]);
-
-  const [isAdminEditing, setIsAdminEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [newPartTitle, setNewPartTitle] = useState('');
-  const [showAddPartInput, setShowAddPartInput] = useState(false);
+  const [role, setRole] = useState<'admin' | 'viewer'>('viewer')
+  const [song, setSong] = useState<SongData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    const savedRole = localStorage.getItem('bendy_role');
-    if (savedRole === 'admin') setIsAdmin(true);
+    const savedRole = (localStorage.getItem('bendy_user_role') as 'admin' | 'viewer') || 'viewer'
+    setRole(savedRole)
+    fetchSong()
+  }, [songId])
 
-    if (songId) fetchSongData();
-  }, [songId]);
-
-  const fetchSongData = async () => {
-    setIsLoading(true);
-
-    const { data: songData } = await supabase
+  const fetchSong = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
       .from('songs')
       .select('*')
       .eq('id', songId)
-      .single();
+      .single()
 
-    if (songData) {
-      if (songData.title) setSongTitle(songData.title);
-      if (songData.current_key) setCurrentKey(songData.current_key);
-      if (songData.media_link) setSongLink(songData.media_link);
-      if (songData.parts && Array.isArray(songData.parts) && songData.parts.length > 0) {
-        setParts(songData.parts);
-      }
+    if (error) {
+      console.error('Error fetching song:', error)
+    } else if (data) {
+      setSong({
+        id: data.id,
+        title: data.title || '',
+        artist: data.artist || '',
+        key: data.key || 'C',
+        bpm: data.bpm || 120,
+        sections: data.sections || [
+          { title: 'בית 1', bars: [{ chord: 'C', lyrics: 'מילים ראשונות...' }] }
+        ]
+      })
     }
+    setLoading(false)
+  }
 
-    setIsLoading(false);
-  };
-
-  const addNewPart = () => {
-    if (!newPartTitle) return;
-    setParts([...parts, { id: Date.now().toString(), title: newPartTitle, icon: '🎵', chordLines: [['Am', 'Dm', 'G', 'C']] }]);
-    setNewPartTitle('');
-    setShowAddPartInput(false);
-  };
-
-  const addChordLineToPart = (partId: string) => {
-    setParts(parts.map(p => p.id === partId ? { ...p, chordLines: [...p.chordLines, ['C', 'G', 'Am', 'F']] } : p));
-  };
-
-  const updateChord = (partId: string, lineIdx: number, chordIdx: number, val: string) => {
-    setParts(parts.map(p => {
-      if (p.id === partId) {
-        const newLines = [...p.chordLines];
-        newLines[lineIdx][chordIdx] = val;
-        return { ...p, chordLines: newLines };
-      }
-      return p;
-    }));
-  };
-
-  const handleSaveStructure = async () => {
-    let finalKey = currentKey;
-    let finalParts = parts;
-
-    // עדכון אקורדים וסולם במידה ונעשה שינוי טרנספוזיציה (+/-)
-    if (transpose !== 0) {
-      finalKey = transposeChord(currentKey, transpose);
-      finalParts = parts.map(p => ({
-        ...p,
-        chordLines: p.chordLines.map(line => line.map(chord => transposeChord(chord, transpose)))
-      }));
-
-      setCurrentKey(finalKey);
-      setParts(finalParts);
-      setTranspose(0);
-    }
-
+  const handleSave = async () => {
+    if (!song) return
+    setSaving(true)
     const { error } = await supabase
       .from('songs')
       .update({
-        title: songTitle,
-        current_key: finalKey,
-        media_link: songLink,
-        parts: finalParts
+        title: song.title,
+        artist: song.artist,
+        key: song.key,
+        bpm: song.bpm,
+        sections: song.sections
       })
-      .eq('id', songId);
+      .eq('id', songId)
 
     if (error) {
-      alert('שגיאה בשמירה ל-DB: ' + error.message);
+      alert('שגיאה בשמירה: ' + error.message)
     } else {
-      setIsAdminEditing(false);
-      alert('השיר נשמר בהצלחה ב-DB!');
+      alert('השיר עודכן בהצלחה!')
+      setIsEditing(false)
     }
-  };
+    setSaving(false)
+  }
+
+  // עדכון שדות כלליים
+  const updateSongField = (field: keyof SongData, value: any) => {
+    if (!song) return
+    setSong({ ...song, [field]: value })
+  }
+
+  // ניהול חלקים (Sections)
+  const addSection = () => {
+    if (!song) return
+    const newSections = [
+      ...song.sections,
+      { title: `בית ${song.sections.length + 1}`, bars: [{ chord: 'C', lyrics: '' }] }
+    ]
+    setSong({ ...song, sections: newSections })
+  }
+
+  const removeSection = (sIndex: number) => {
+    if (!song) return
+    const newSections = song.sections.filter((_, idx) => idx !== sIndex)
+    setSong({ ...song, sections: newSections })
+  }
+
+  const updateSectionTitle = (sIndex: number, title: string) => {
+    if (!song) return
+    const newSections = [...song.sections]
+    newSections[sIndex].title = title
+    setSong({ ...song, sections: newSections })
+  }
+
+  // ניהול תיבות (Bars)
+  const addBar = (sIndex: number) => {
+    if (!song) return
+    const newSections = [...song.sections]
+    newSections[sIndex].bars.push({ chord: '', lyrics: '' })
+    setSong({ ...song, sections: newSections })
+  }
+
+  const removeBar = (sIndex: number, bIndex: number) => {
+    if (!song) return
+    const newSections = [...song.sections]
+    newSections[sIndex].bars = newSections[sIndex].bars.filter((_, idx) => idx !== bIndex)
+    setSong({ ...song, sections: newSections })
+  }
+
+  const updateBar = (sIndex: number, bIndex: number, field: 'chord' | 'lyrics', value: string) => {
+    if (!song) return
+    const newSections = [...song.sections]
+    newSections[sIndex].bars[bIndex][field] = value
+    setSong({ ...song, sections: newSections })
+  }
+
+  if (loading) {
+    return <div style={{ padding: '20px', color: '#fff', textAlign: 'center' }}>טוען שיר...</div>
+  }
+
+  if (!song) {
+    return <div style={{ padding: '20px', color: '#fff', textAlign: 'center' }}>השיר לא נמצא</div>
+  }
 
   return (
-    <div style={{ backgroundColor: '#0a120d', color: '#e8f5e9', minHeight: '100vh', display: 'flex', justifyContent: 'center', padding: '15px', fontFamily: 'sans-serif', direction: 'rtl' }}>
-      <div style={{ width: '100%', maxWidth: '450px', backgroundColor: '#0e1812', borderRadius: '20px', padding: '20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px', border: '1px solid #16281e' }}>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button onClick={() => router.push('/setlist')} style={{ background: 'none', border: 'none', color: '#a4b3a9', cursor: 'pointer', fontSize: '0.9rem' }}>
-            ➔ חזרה לסטליסט
+    <div style={{ padding: '20px', maxWidth: '600px', margin: '0 auto', color: '#fff', fontFamily: 'sans-serif', direction: 'rtl' }}>
+      
+      {/* סרגל עליון */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <button 
+          onClick={() => router.push('/setlist')}
+          style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#333', color: '#fff', cursor: 'pointer' }}
+        >
+          ➔ חזרה לסטליסט
+        </button>
+
+        {role === 'admin' && (
+          <button 
+            onClick={() => setIsEditing(!isEditing)}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: isEditing ? '#ff9800' : '#4caf50', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
+          >
+            {isEditing ? 'ביטול עריכה' : '✏️ ערוך שיר'}
           </button>
-        </div>
+        )}
+      </div>
 
-        {/* כותרת וסולם */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {isAdminEditing ? (
-            <input type="text" value={songTitle} onChange={e => setSongTitle(e.target.value)} style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2ecc71', backgroundColor: '#16281e', border: '1px solid #2ecc71', padding: '4px 8px', borderRadius: '6px', width: '60%' }} />
-          ) : (
-            <div style={{ fontSize: '1.7rem', fontWeight: 'bold', color: '#2ecc71' }}>{songTitle}</div>
-          )}
-          <div style={{ fontSize: '0.95rem', color: '#a4b3a9' }}>
-            סולם: <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>{currentKey}</span>
+      {/* מצב עריכה לאדמין */}
+      {isEditing ? (
+        <div style={{ background: '#1e1e1e', padding: '20px', borderRadius: '12px', border: '1px solid #444' }}>
+          <h2 style={{ color: '#4caf50', marginTop: 0 }}>מצב עריכת שיר (Admin)</h2>
+          
+          <div style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'block', fontSize: '12px', color: '#aaa' }}>שם השיר:</label>
+            <input 
+              type="text" 
+              value={song.title} 
+              onChange={(e) => updateSongField('title', e.target.value)}
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #555', background: '#2a2a2a', color: '#fff' }}
+            />
           </div>
-        </div>
 
-        {/* בקרת טרנספוזיציה (העלאה בטון / הורדה בחצי טון) */}
-        {isAdmin && isAdminEditing && (
-          <div style={{ backgroundColor: '#132219', padding: '12px 15px', borderRadius: '12px', border: '1px solid #2ecc71', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#2ecc71' }}>שינוי סולם לשיר (+/-):</span>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <button onClick={() => setTranspose(t => t - 1)} style={{ backgroundColor: '#1c3325', color: '#2ecc71', border: '1px solid #2ecc71', width: '36px', height: '36px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1.3rem' }}>-</button>
-              <span style={{ fontWeight: 'bold', color: '#2ecc71', minWidth: '30px', textAlign: 'center', fontSize: '1.1rem' }}>{transpose > 0 ? `+${transpose}` : transpose}</span>
-              <button onClick={() => setTranspose(t => t + 1)} style={{ backgroundColor: '#1c3325', color: '#2ecc71', border: '1px solid #2ecc71', width: '36px', height: '36px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1.3rem' }}>+</button>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa' }}>אמן:</label>
+              <input 
+                type="text" 
+                value={song.artist} 
+                onChange={(e) => updateSongField('artist', e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #555', background: '#2a2a2a', color: '#fff' }}
+              />
+            </div>
+            <div style={{ width: '80px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa' }}>סולם:</label>
+              <input 
+                type="text" 
+                value={song.key} 
+                onChange={(e) => updateSongField('key', e.target.value)}
+                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #555', background: '#2a2a2a', color: '#fff' }}
+              />
+            </div>
+            <div style={{ width: '80px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa' }}>BPM:</label>
+              <input 
+                type="number" 
+                value={song.bpm} 
+                onChange={(e) => updateSongField('bpm', parseInt(e.target.value) || 0)}
+                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #555', background: '#2a2a2a', color: '#fff' }}
+              />
             </div>
           </div>
-        )}
 
-        {isLoading ? (
-          <div style={{ textAlign: 'center', color: '#a4b3a9', padding: '20px' }}>טוען שיר...</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
-            {parts.map((part) => (
-              <div key={part.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
-                <div style={{ backgroundColor: '#183626', color: '#ffffff', padding: '6px 16px', borderRadius: '8px', fontWeight: 'bold', fontSize: '1.1rem', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span>{part.icon}</span>
-                  <span>{part.title}</span>
-                </div>
+          <hr style={{ borderColor: '#333', margin: '20px 0' }} />
 
-                <div style={{ width: '100%', backgroundColor: '#111f17', border: '1px solid #1b3325', borderRadius: '14px', padding: '20px 15px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {part.chordLines.map((line, lineIdx) => (
-                    <div key={lineIdx} style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: '10px 0', direction: 'ltr' }}>
-                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', opacity: 0.25, pointerEvents: 'none' }}>
-                        <div style={{ height: '1px', backgroundColor: '#a4b3a9' }} />
-                        <div style={{ height: '1px', backgroundColor: '#a4b3a9' }} />
-                        <div style={{ height: '1px', backgroundColor: '#a4b3a9' }} />
-                        <div style={{ height: '1px', backgroundColor: '#a4b3a9' }} />
-                        <div style={{ height: '1px', backgroundColor: '#a4b3a9' }} />
-                      </div>
+          <h3>מבנה ותיבות נגינה</h3>
 
-                      {line.map((chord, cIdx) => (
-                        <div key={cIdx} style={{ zIndex: 2 }}>
-                          {isAdmin && isAdminEditing ? (
-                            <input type="text" value={transposeChord(chord, transpose)} onChange={e => updateChord(part.id, lineIdx, cIdx, e.target.value)} style={{ backgroundColor: '#183626', color: '#2ecc71', border: '1px solid #2ecc71', fontWeight: 'bold', fontSize: '1.2rem', textAlign: 'center', width: '55px', padding: '6px', borderRadius: '8px' }} />
-                          ) : (
-                            <span style={{ fontSize: '1.5rem', fontWeight: '900', color: '#2ecc71', fontFamily: 'monospace', textShadow: '0 0 10px rgba(46,204,113,0.3)' }}>{transposeChord(chord, transpose)}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+          {song.sections.map((sec, sIdx) => (
+            <div key={sIdx} style={{ background: '#2a2a2a', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <input 
+                  type="text" 
+                  value={sec.title} 
+                  onChange={(e) => updateSectionTitle(sIdx, e.target.value)}
+                  style={{ background: 'transparent', border: 'none', borderBottom: '1px solid #ff9800', color: '#ff9800', fontWeight: 'bold', fontSize: '16px' }}
+                />
+                <button onClick={() => removeSection(sIdx)} style={{ background: '#f44336', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>מחק חלק</button>
+              </div>
 
-                  {isAdmin && isAdminEditing && (
-                    <button onClick={() => addChordLineToPart(part.id)} style={{ backgroundColor: '#183626', color: '#2ecc71', border: '1px dashed #2ecc71', padding: '8px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px' }}>
-                      ➕ הוסף שורת אקורדים ל{part.title}
+              {/* רשימת תיבות */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+                {sec.bars.map((bar, bIdx) => (
+                  <div key={bIdx} style={{ background: '#181818', padding: '8px', borderRadius: '6px', position: 'relative' }}>
+                    <button 
+                      onClick={() => removeBar(sIdx, bIdx)} 
+                      style={{ position: 'absolute', top: '2px', left: '2px', background: 'transparent', color: '#888', border: 'none', cursor: 'pointer', fontSize: '10px' }}
+                    >
+                      ✕
                     </button>
-                  )}
-                </div>
+                    <input 
+                      type="text" 
+                      placeholder="אקורד" 
+                      value={bar.chord} 
+                      onChange={(e) => updateBar(sIdx, bIdx, 'chord', e.target.value)}
+                      style={{ width: '100%', background: '#333', border: 'none', color: '#4caf50', fontWeight: 'bold', borderRadius: '4px', textAlign: 'center', marginBottom: '4px', padding: '4px' }}
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="מילים" 
+                      value={bar.lyrics} 
+                      onChange={(e) => updateBar(sIdx, bIdx, 'lyrics', e.target.value)}
+                      style={{ width: '100%', background: 'transparent', border: 'none', color: '#fff', fontSize: '12px', textAlign: 'center' }}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
 
-        {/* הוספת חלק לשיר */}
-        {isAdmin && isAdminEditing && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {!showAddPartInput ? (
-              <button onClick={() => setShowAddPartInput(true)} style={{ backgroundColor: '#183626', color: '#3498db', border: '1px dashed #3498db', padding: '12px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>➕ הוסף חלק חדש</button>
-            ) : (
-              <div style={{ backgroundColor: '#16281e', padding: '12px', borderRadius: '10px', border: '1px solid #3498db', display: 'flex', gap: '8px' }}>
-                <input type="text" placeholder="שם החלק..." value={newPartTitle} onChange={e => setNewPartTitle(e.target.value)} style={{ flex: 1, backgroundColor: '#0d1310', border: '1px solid #22332a', color: '#fff', padding: '8px', borderRadius: '6px' }} />
-                <button onClick={addNewPart} style={{ backgroundColor: '#3498db', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>הוסף</button>
-              </div>
-            )}
-          </div>
-        )}
+              <button 
+                onClick={() => addBar(sIdx)}
+                style={{ background: '#333', color: '#aaa', border: '1px dashed #666', borderRadius: '4px', width: '100%', padding: '6px', cursor: 'pointer', fontSize: '12px' }}
+              >
+                + הוסף תיבת נגינה
+              </button>
+            </div>
+          ))}
 
-        {/* לינק לשיר */}
-        {isAdmin && isAdminEditing && (
-          <div style={{ backgroundColor: '#132219', padding: '12px', borderRadius: '10px', border: '1px solid #e67e22', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#e67e22', fontWeight: 'bold' }}>🔗 קישור לשיר (YouTube / Spotify):</span>
-            <input type="text" placeholder="הדבק לינק..." value={songLink} onChange={e => setSongLink(e.target.value)} style={{ backgroundColor: '#0d1310', border: '1px solid #22332a', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.9rem', direction: 'ltr' }} />
-          </div>
-        )}
-
-        {/* כפתור עריכה ושמירה ל-DB */}
-        {isAdmin && (
           <button 
-            onClick={() => isAdminEditing ? handleSaveStructure() : setIsAdminEditing(true)}
-            style={{ backgroundColor: isAdminEditing ? '#27ae60' : '#132219', color: '#fff', border: '1px solid #2ecc71', padding: '14px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}
+            onClick={addSection}
+            style={{ background: '#2196f3', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', width: '100%', marginBottom: '20px', cursor: 'pointer' }}
           >
-            ⚙️ {isAdminEditing ? 'שמור שיר ל-DB' : 'ערוך מבנה ואקורדים'}
+            + הוסף חלק חדש (בית / פזמון)
           </button>
-        )}
 
-        {!isAdminEditing && songLink && (
-          <div style={{ borderTop: '1px solid #16281e', paddingTop: '15px', textAlign: 'center' }}>
-            <a href={songLink} target="_blank" rel="noopener noreferrer" style={{ display: 'block', backgroundColor: '#16281e', color: '#e67e22', border: '1px solid #e67e22', padding: '12px', borderRadius: '10px', fontWeight: 'bold', textDecoration: 'none' }}>
-              🎧 השמעת השיר המקורי
-            </a>
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            style={{ background: '#4caf50', color: '#fff', border: 'none', borderRadius: '8px', padding: '14px', width: '100%', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer' }}
+          >
+            {saving ? 'שומר שינויים...' : '💾 שמור שינויים בשיר'}
+          </button>
+        </div>
+      ) : (
+        /* מצב צפייה רגיל לנגנים (או לאדמין שלא במצב עריכה) */
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+            <h1 style={{ margin: '0 0 5px 0', fontSize: '28px' }}>{song.title}</h1>
+            <p style={{ color: '#aaa', margin: 0 }}>{song.artist}</p>
+            <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'center', gap: '15px', fontSize: '14px', color: '#ff9800' }}>
+              <span>🎼 סולם: <strong>{song.key}</strong></span>
+              <span>⏱️ קצב: <strong>{song.bpm} BPM</strong></span>
+            </div>
           </div>
-        )}
 
-      </div>
+          {/* תצוגת הבתים והאקורדים */}
+          {song.sections.map((sec, sIdx) => (
+            <div key={sIdx} style={{ marginBottom: '25px', background: '#1a1a1a', padding: '15px', borderRadius: '10px' }}>
+              <h3 style={{ color: '#ff9800', marginTop: 0, borderBottom: '1px solid #333', paddingBottom: '5px' }}>{sec.title}</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '10px' }}>
+                {sec.bars.map((bar, bIdx) => (
+                  <div key={bIdx} style={{ background: '#262626', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#4caf50', fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>{bar.chord || '-'}</div>
+                    <div style={{ color: '#ddd', fontSize: '13px' }}>{bar.lyrics}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-  );
+  )
 }
